@@ -3,3 +3,5 @@
 /__pycache__
 /ollama
 *.db
+.DS_Store
+/data

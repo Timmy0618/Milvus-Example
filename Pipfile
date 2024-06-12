@@ -4,11 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pymilvus = "*"
 ollama = "*"
 langchain = "*"
 qdrant-client = "*"
 langchain-community = "*"
+pymilvus = {version = "*", extras = ["model"]}
+langchain-cli = "*"
+langchainhub = "*"
+langchain-milvus = "*"
 
 [dev-packages]
 

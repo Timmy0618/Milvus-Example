@@ -1,38 +1,37 @@
-from milvus_db import MilvusHelper
-from embedding import get_embeddings
+from langchain.chains import RetrievalQA
+from langchain import hub
+from langchain_community.llms import Ollama
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain_milvus import Milvus
+from embedding import chunk_text, get_embeddings
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
 
+MILVUS_URI = "http://localhost:19530"
 
-def store_vector(user_id, question_text):
-    question_vector = get_embeddings(question_text)
+llm = Ollama(
+    model="llama2",
+    callback_manager=CallbackManager(
+        [StreamingStdOutCallbackHandler()]
+    ),
+    stop=["<|eot_id|>"],
+)
 
-    vector_ids = milvus_helper.insert_vector_to_milvus(
-        user_id, question_vector)
+vector_db = Milvus(
+    get_embeddings(),
+    connection_args={"uri": MILVUS_URI},
+    collection_name="LangChainCollection",
+)
 
-    milvus_helper.store_mapping_in_db(user_id, vector_ids, question_text)
+query = input("\nQuery: ")
 
+retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
+retriever = vector_db.as_retriever()
+combine_docs_chain = create_stuff_documents_chain(
+    llm, retrieval_qa_chat_prompt
+)
+retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
 
-def vector_response(user_id, query_text):
-    query_vector = get_embeddings(query_text)
-
-    similar_vector_ids = milvus_helper.search_similar_vectors_in_milvus(
-        query_vector)
-
-    similar_questions = milvus_helper.find_original_texts_by_vector_ids(
-        user_id, similar_vector_ids)
-
-    print("找到的相關問題：")
-    for question in similar_questions:
-        print(question)
-
-
-milvus_helper = MilvusHelper()
-
-user_id = 1
-question_text = "我每天晚上都睡不好，應該怎麼辦？"
-
-store_vector(user_id, question_text)
-
-user_id = 1
-query_text = "睡不好"
-
-vector_response(user_id, query_text)
+result = retrieval_chain.invoke({"input": query})
+print(result)
