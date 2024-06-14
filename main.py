@@ -1,12 +1,11 @@
-from langchain.chains import RetrievalQA
 from langchain import hub
 from langchain_community.llms import Ollama
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_milvus import Milvus
-from embedding import chunk_text, get_embeddings
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
+from embedding import get_embeddings
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 MILVUS_URI = "http://localhost:19530"
 
@@ -26,12 +25,18 @@ vector_db = Milvus(
 
 query = input("\nQuery: ")
 
-retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-retriever = vector_db.as_retriever()
-combine_docs_chain = create_stuff_documents_chain(
-    llm, retrieval_qa_chat_prompt
+prompt = hub.pull("rlm/rag-prompt")
+retriever = vector_db.as_retriever(
+    search_type="similarity",
+    search_kwargs={'score_threshold': 0.9, 'k': 3}
 )
-retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
 
-result = retrieval_chain.invoke({"input": query})
+rag_chain = (
+    {"context": retriever, "question": RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+result = rag_chain.invoke(query)
+
 print(result)

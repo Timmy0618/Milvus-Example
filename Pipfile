@@ -12,6 +12,8 @@ pymilvus = {version = "*", extras = ["model"]}
 langchain-cli = "*"
 langchainhub = "*"
 langchain-milvus = "*"
+langchain-core = "*"
+pypdf = "*"
 
 [dev-packages]
 
